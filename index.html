@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>今天吃什麼？誠實探店雙人滑卡配對機｜零業配在地美食避雷</title>
+  <meta name="description" content="專治情侶、夫妻、同事與朋友的「隨便」選擇障礙！結合 GPS 即時定位算距離、雙人滑卡配對，以及超誠實的「勸退指南（直接告訴你這家不適合誰）」，拒絕無腦業配文。" />
+  <meta name="keywords" content="今天吃什麼, 台中美食, 大里美食, 太平美食, 雙人滑卡選餐廳, 午餐吃什麼, 誠實探店, 美食避雷" />
+  <meta name="robots" content="index, follow" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      background: linear-gradient(135deg, #fff5f2 0%, #ffe8e0 100%);
+      user-select: none;
+      overflow-x: hidden;
+    }
+    .card-shadow {
+      box-shadow: 0 20px 35px -10px rgba(234, 88, 12, 0.18), 0 8px 15px -6px rgba(0, 0, 0, 0.08);
+    }
+    .swipe-card {
+      transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease;
+      touch-action: none;
+    }
+    .swipe-card.dragging {
+      transition: none;
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.8); opacity: 0; }
+      70% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .pop-in {
+      animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-between text-slate-800">
+
+  <!-- Top Header -->
+  <header class="w-full max-w-md px-5 pt-5 pb-2 flex items-center justify-between">
+    <div class="flex items-center gap-2 cursor-pointer" onclick="goHome()">
+      <span class="text-2xl">🍜</span>
+      <div>
+        <h1 class="font-black text-lg tracking-tight text-orange-600 leading-none">誠實探店配對機</h1>
+        <p class="text-[11px] text-slate-500 mt-0.5">在地零業配實測・專治選擇障礙</p>
+      </div>
+    </div>
+    <button onclick="openAddModal()" class="bg-white/90 hover:bg-white text-orange-600 border border-orange-200 font-bold text-xs px-3 py-1.5 rounded-full shadow-sm transition active:scale-95">
+      ＋ 新增口袋名單
+    </button>
+  </header>
+
+  <!-- Main Container -->
+  <main id="app" class="w-full max-w-md flex-1 flex flex-col px-5 py-3 justify-center">
+    <!-- Content rendered via JS -->
+  </main>
+
+  <!-- Footer -->
+  <footer class="w-full max-w-md px-5 py-3 text-center text-xs text-slate-400 flex justify-between items-center">
+    <span>誠實探店 MVP v2.0（全客群版）</span>
+    <button onclick="openFeedbackModal()" class="text-orange-600 font-medium underline hover:text-orange-700">
+      解鎖完整 50 間避雷地圖 / 填寫回饋
+    </button>
+  </footer>
+
+  <!-- Match Modal -->
+  <div id="matchModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-5">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center pop-in shadow-2xl border-2 border-orange-200">
+      <div class="inline-block bg-orange-100 text-orange-600 font-black text-xs px-3 py-1 rounded-full mb-2">
+        🎉 雙方都按愛心！配對成功！
+      </div>
+      <h2 class="text-2xl font-black text-slate-800 mb-1">這餐就吃這間！</h2>
+      <p class="text-xs text-slate-500 mb-4">你們成功終結了「隨便」的無限迴圈</p>
+
+      <div id="matchCardContent" class="bg-orange-50/70 rounded-2xl p-4 text-left border border-orange-100 mb-5">
+        <!-- Populated dynamically -->
+      </div>
+
+      <div class="flex gap-2.5">
+        <button onclick="closeMatchModal()" class="flex-1 py-3 rounded-xl font-bold text-sm bg-slate-100 text-slate-600 hover:bg-slate-200 transition">
+          繼續滑下一間
+        </button>
+        <a id="matchMapLink" href="#" target="_blank" class="flex-1 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-md hover:opacity-95 transition flex items-center justify-center gap-1">
+          📍 導航出發
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Restaurant Modal -->
+  <div id="addModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-5">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 pop-in shadow-xl">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-black text-lg text-slate-800">新增你的私房探店卡片</h3>
+        <button onclick="closeAddModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      </div>
+      <form id="addForm" onsubmit="handleAddRestaurant(event)" class="space-y-3 text-sm">
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">店名</label>
+          <input type="text" id="newName" required placeholder="例如：仁化路阿伯炒麵" class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-orange-500" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">平均價位</label>
+            <input type="text" id="newPrice" required placeholder="例如：$65 ~ $95" class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-orange-500" />
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">所在路段／距離</label>
+            <input type="text" id="newDist" required placeholder="例如：大里塗城路" class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-orange-500" />
+          </div>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">用餐情境標籤</label>
+          <select id="newTag" class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-orange-500 bg-white">
+            <option value="午休快速吃">⏱️ 午休快速吃（上班族）</option>
+            <option value="聚餐約會親子">👨‍👩‍👧‍👦 聚餐約會／親子友善</option>
+            <option value="高CP值日常餐">💰 高CP值日常餐</option>
+            <option value="深夜宵夜救星">🌙 深夜宵夜救星</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-bold text-emerald-700 mb-1">👍 老饕必點推薦</label>
+          <input type="text" id="newMust" required placeholder="例如：炒麵＋綜合湯，一定要加東泉辣椒醬" class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-orange-500" />
+        </div>
+        <div>
+          <label class="block font-bold text-rose-600 mb-1">⚠️ 誠實勸退（不適合誰？）</label>
+          <input type="text" id="newWarn" required placeholder="例如：中午排隊要等 15 分鐘，午休趕時間慎入" class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-orange-500" />
+        </div>
+        <button type="submit" class="w-full py-3 mt-2 rounded-xl font-bold text-white bg-orange-500 hover:bg-orange-600 transition shadow">
+          加入滑卡資料庫
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Feedback / Unlock Modal -->
+  <div id="feedbackModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-5">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 pop-in shadow-xl text-center">
+      <div class="text-3xl mb-2">🗺️</div>
+      <h3 class="font-black text-lg text-slate-800 mb-1">解鎖《在地 50 間零業配誠實避雷地圖》</h3>
+      <p class="text-xs text-slate-500 mb-4 leading-relaxed">
+        目前免費版開放 8 間精選實測店家！填寫 30 秒使用心得回饋，即可獲得完整避雷地圖包早鳥優惠（原價 $79，試用回饋價 $39）。
+      </p>
+      <div class="bg-orange-50 rounded-2xl p-3.5 text-left text-xs text-slate-700 space-y-1.5 mb-4 border border-orange-100">
+        <p class="font-bold text-orange-700">完整版包含：</p>
+        <p>✅ 50 間真實自費實測評比（涵蓋午休快餐、約會、親子聚餐）</p>
+        <p>✅ 隱藏版點餐暗號＆加飯加麵攻略</p>
+        <p>✅ 清楚標註「停車便利度、冷氣強弱、尖峰排隊時間」</p>
+      </div>
+      <button onclick="submitFakeFeedback()" class="w-full py-3 rounded-xl font-bold text-sm bg-slate-800 text-white hover:bg-slate-900 transition mb-2">
+        點我填寫試用回饋（+1 紀錄需求）
+      </button>
+      <button onclick="closeFeedbackModal()" class="text-xs text-slate-400 hover:text-slate-600">先不用，繼續體驗</button>
+    </div>
+  </div>
+
+  <script>
+    // 涵蓋台中大里・太平生活圈（含真實經緯度供 GPS 計算距離）
+    const defaultRestaurants = [
+      {
+        id: 1,
+        name: "塗城路無名爆量炒麵豬血湯",
+        price: "$55 ~ $85",
+        dist: "大里塗城路商圈",
+        lat: 24.0938,
+        lng: 120.7135,
+        tag: "高CP值日常餐",
+        emoji: "🍝",
+        bg: "from-amber-400 to-orange-500",
+        must: "大碗炒麵加半熟荷包蛋，淋上滿滿台中靈魂東泉辣椒醬，再配一碗綜合湯。",
+        warn: "環境是傳統路邊鐵皮騎樓、夏天沒冷氣偏熱；怕熱或帶小孩想吹冷氣的人請直接外帶。"
+      },
+      {
+        id: 2,
+        name: "仁化黃昏市場・現炸脆皮雞排",
+        price: "$75 ~ $110",
+        dist: "大里仁化路",
+        lat: 24.0965,
+        lng: 120.7082,
+        tag: "深夜宵夜救星",
+        emoji: "🍗",
+        bg: "from-rose-500 to-red-600",
+        must: "招牌厚切脆皮雞排（不要切！鎖住肉汁才爽）＋ 甜不辣炸得超酥脆。",
+        warn: "下午 4 點才開賣，傍晚 6 點下班尖峰現場等 20 分鐘起跳，趕時間建議先打電話預訂。"
+      },
+      {
+        id: 3,
+        name: "成功路文青系・手作厚切咖哩飯",
+        price: "$150 ~ $210",
+        dist: "大里成功路",
+        lat: 24.0912,
+        lng: 120.7021,
+        tag: "聚餐約會親子",
+        emoji: "🍛",
+        bg: "from-yellow-500 to-amber-600",
+        must: "唐揚炸雞歐姆蛋咖哩，可免費續飯加醬一次，醬汁帶微辣跟果香很有層次。",
+        warn: "店內只有 14 個座位，超過 4 人以上家庭聚餐很難坐一起；偏日系微辣，完全不吃辣的人慎選。"
+      },
+      {
+        id: 4,
+        name: "工業路・老字號藥膳排骨＆魯肉飯",
+        price: "$65 ~ $120",
+        dist: "大里工業區周邊",
+        lat: 24.0955,
+        lng: 120.7180,
+        tag: "午休快速吃",
+        emoji: "🍲",
+        bg: "from-emerald-500 to-teal-600",
+        must: "出餐超快！膠質滿滿的手切魯肉飯 ＋ 進補必喝的當歸藥膳排骨湯。",
+        warn: "魯肉飯肥肉比例偏高（約 7:3），不敢吃肥肉或正在飲控的人請改點雞肉飯。"
+      },
+      {
+        id: 5,
+        name: "大里軟體園區旁・韓式部隊鍋個人鍋",
+        price: "$170 ~ $230",
+        dist: "大里中興路一段",
+        lat: 24.0875,
+        lng: 120.6965,
+        tag: "聚餐約會親子",
+        emoji: "🥘",
+        bg: "from-red-500 to-pink-600",
+        must: "起司拉麵部隊鍋，白飯、飲料跟霜淇淋無限自助吧吃到飽，冷氣超涼好停車。",
+        warn: "湯頭偏重鹹、起司熱量爆表，吃清淡養生口味的長輩或飲控族請直接跳過這間。"
+      },
+      {
+        id: 6,
+        name: "瑞城國小旁・深夜豆花＆手工芋圓",
+        price: "$45 ~ $65",
+        dist: "大里瑞城一街",
+        lat: 24.0890,
+        lng: 120.7110,
+        tag: "深夜宵夜救星",
+        emoji: "🍧",
+        bg: "from-indigo-500 to-purple-600",
+        must: "綜合三號（花生＋芋圓＋粉圓）換豆漿湯底，芋圓吃得到真實芋頭顆粒。",
+        warn: "只營業到晚上 10 點半，太晚出門會撲空；甜度固定無法調無糖，不嗜甜者慎入。"
+      },
+      {
+        id: 7,
+        name: "塗城商圈・超大份量平價鐵板燒",
+        price: "$140 ~ $190",
+        dist: "大里塗城路",
+        lat: 24.0932,
+        lng: 120.7120,
+        tag: "高CP值日常餐",
+        emoji: "🥩",
+        bg: "from-orange-500 to-amber-700",
+        must: "黑胡椒牛柳套餐，高麗菜跟豆芽菜給得超大方，白飯、湯品、紅茶無限續。",
+        warn: "吃完身上油煙味會非常重！上班族午休吃完回冷氣辦公室，或晚上有約會請三思。"
+      },
+      {
+        id: 8,
+        name: "中興路・日系質感單人拉麵吧台",
+        price: "$180 ~ $240",
+        dist: "大里中興路一段",
+        lat: 24.0882,
+        lng: 120.6950,
+        tag: "午休快速吃",
+        emoji: "🍜",
+        bg: "from-sky-500 to-blue-600",
+        must: "濃厚豚骨叉燒拉麵（麵條選硬＋蒜泥加爆），叉燒炙燒香氣十足，翻桌率快。",
+        warn: "全店都是單人吧台座位，沒有兒童座椅也不適合多人聚餐聊天；建議免費加麵才吃得飽。"
+      }
+    ];
+
+    let restaurants = JSON.parse(localStorage.getItem('honestFoodCards_v3')) || [...defaultRestaurants];
+    let mode = 'home';
+    let currentPlayer = 1;
+    let p1Likes = [];
+    let p2Likes = [];
+    let filteredDeck = [];
+    let currentIndex = 0;
+    let selectedTag = 'ALL';
+    let userLocation = null;
+
+    const app = document.getElementById('app');
+
+    // Haversine formula to calculate distance in km
+    function getDistanceKm(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    function requestGPS() {
+      const btn = document.getElementById('gpsBtn');
+      if (!navigator.geolocation) {
+        alert('你的瀏覽器不支援 GPS 定位功能喔！');
+        return;
+      }
+      if (btn) btn.innerHTML = '⏳ 正在取得你的 GPS 位置...';
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          userLocation = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          };
+          // Calculate distance & sort nearest first
+          restaurants.forEach(r => {
+            if (r.lat && r.lng) {
+              const km = getDistanceKm(userLocation.lat, userLocation.lng, r.lat, r.lng);
+              r.distanceKm = km;
+              const meters = Math.round(km * 1000);
+              const rideMin = Math.max(1, Math.round(km * 2.5));
+              r.liveDistText = meters < 1000
+                ? `距離你 ${meters} 公尺（約 ${rideMin} 分鐘）`
+                : `距離你 ${km.toFixed(1)} 公里（車程約 ${rideMin} 分鐘）`;
+            }
+          });
+          restaurants.sort((a, b) => (a.distanceKm || 999) - (b.distanceKm || 999));
+          render();
+        },
+        (err) => {
+          alert('無法取得定位（請確認瀏覽器已允許位置權限），將繼續使用預設距離顯示！');
+          if (btn) btn.innerHTML = '📍 開啟定位，自動計算真實距離';
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+
+    function render() {
+      if (mode === 'home') {
+        renderHome();
+      } else {
+        renderSwipeScreen();
+      }
+    }
+
+    function renderHome() {
+      const tags = ['ALL', '午休快速吃', '聚餐約會親子', '高CP值日常餐', '深夜宵夜救星'];
+      const tagLabels = {
+        'ALL': '🔥 全部實測 (' + restaurants.length + ')',
+        '午休快速吃': '⏱️ 午休快速吃',
+        '聚餐約會親子': '👨‍👩‍👧‍👦 約會／親子',
+        '高CP值日常餐': '💰 高CP日常餐',
+        '深夜宵夜救星': '🌙 深夜宵夜'
+      };
+
+      app.innerHTML = `
+        <div class="bg-white rounded-3xl p-6 card-shadow border border-orange-100 pop-in">
+          <div class="flex items-center justify-between mb-3">
+            <div class="inline-flex items-center gap-1.5 bg-orange-50 text-orange-600 text-xs font-bold px-3 py-1 rounded-full">
+              <span>🚫 拒絕網美業配</span>
+              <span>•</span>
+              <span>專治「隨便」選擇障礙</span>
+            </div>
+          </div>
+          <h2 class="text-2xl font-black text-slate-800 leading-snug mb-2">
+            別再問「這餐吃什麼」<br/>滑出你們的<span class="text-orange-500">命定無雷餐廳</span>
+          </h2>
+          <p class="text-xs text-slate-500 leading-relaxed mb-4">
+            不論是情侶約會、同事午休或家庭聚餐，每張卡片都附上<strong class="text-emerald-600">「老饕必點」</strong>與超誠實的<strong class="text-rose-500">「勸退指南（不適合誰）」</strong>。
+          </p>
+
+          <!-- GPS Button -->
+          <button id="gpsBtn" onclick="requestGPS()" class="w-full mb-4 py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+            userLocation
+              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+          }">
+            ${userLocation ? '✅ 已開啟 GPS 定位（已依距離由近到遠排序）' : '📍 開啟定位，自動計算離你多遠＆由近到遠排序'}
+          </button>
+
+          <div class="mb-5">
+            <label class="block text-xs font-bold text-slate-400 mb-2">1. 選擇今天用餐情境：</label>
+            <div class="flex flex-wrap gap-1.5">
+              ${tags.map(t => `
+                <button onclick="selectTag('${t}')" class="text-xs font-bold px-3 py-1.5 rounded-full transition ${
+                  selectedTag === t
+                    ? 'bg-slate-800 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }">
+                  ${tagLabels[t]}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="space-y-2.5">
+            <label class="block text-xs font-bold text-slate-400">2. 選擇決策模式：</label>
+            <button onclick="startMode('duo')" class="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-orange-500 to-rose-500 text-white font-bold text-left flex items-center justify-between shadow-lg shadow-orange-200 hover:opacity-95 transition active:scale-[0.98]">
+              <div>
+                <div class="text-base font-black flex items-center gap-1.5">
+                  👫 雙人／同行滑卡配對
+                  <span class="text-[10px] bg-white/25 px-2 py-0.5 rounded-full">主打功能</span>
+                </div>
+                <div class="text-xs text-orange-100 font-normal mt-0.5">伴侶、同事或家人輪流滑，都按 ❤️ 立刻配對成功！</div>
+              </div>
+              <span class="text-xl">➔</span>
+            </button>
+
+            <button onclick="startMode('solo')" class="w-full py-3.5 px-4 rounded-2xl bg-white border-2 border-slate-200 hover:border-orange-300 text-slate-700 font-bold text-left flex items-center justify-between transition active:scale-[0.98]">
+              <div>
+                <div class="text-sm font-black">🙋 單人快速選餐模式</div>
+                <div class="text-xs text-slate-400 font-normal mt-0.5">自己滑出想吃的口袋名單，一鍵幫你抽最終決定</div>
+              </div>
+              <span class="text-lg text-slate-400">➔</span>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function selectTag(tag) {
+      selectedTag = tag;
+      render();
+    }
+
+    function startMode(selectedMode) {
+      filteredDeck = selectedTag === 'ALL'
+        ? [...restaurants]
+        : restaurants.filter(r => r.tag === selectedTag);
+
+      if (filteredDeck.length === 0) {
+        alert('這個分類目前沒有卡片，請先選「全部實測」或自己新增一間吧！');
+        return;
+      }
+
+      mode = selectedMode;
+      currentPlayer = 1;
+      p1Likes = [];
+      p2Likes = [];
+      currentIndex = 0;
+      render();
+    }
+
+    function goHome() {
+      mode = 'home';
+      render();
+    }
+
+    function renderSwipeScreen() {
+      if (currentIndex >= filteredDeck.length) {
+        if (mode === 'duo' && currentPlayer === 1) {
+          app.innerHTML = `
+            <div class="bg-white rounded-3xl p-7 text-center card-shadow pop-in border border-orange-100">
+              <div class="text-5xl mb-3">📱</div>
+              <h2 class="text-xl font-black text-slate-800 mb-2">第一位滑完了！</h2>
+              <p class="text-sm text-slate-500 mb-6 leading-relaxed">
+                你一共按了 <strong class="text-orange-600">${p1Likes.length}</strong> 間喜歡！<br/>
+                現在請把手機交給<strong>第二位（伴侶、同事或家人）</strong>，只要他也對同一間按喜歡，就會立刻配對成功！
+              </p>
+              <button onclick="startPlayer2()" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-500 to-rose-500 text-white font-black text-base shadow-lg hover:opacity-95 transition">
+                我是第二位，開始滑卡！
+              </button>
+            </div>
+          `;
+          return;
+        } else {
+          const likesPool = mode === 'solo' ? p1Likes : [...new Set([...p1Likes, ...p2Likes])];
+          const randomPick = likesPool.length > 0
+            ? likesPool[Math.floor(Math.random() * likesPool.length)]
+            : filteredDeck[Math.floor(Math.random() * filteredDeck.length)];
+
+          app.innerHTML = `
+            <div class="bg-white rounded-3xl p-6 text-center card-shadow pop-in border border-orange-100">
+              <div class="text-4xl mb-2">${mode === 'duo' ? '😅' : '🎯'}</div>
+              <h2 class="text-xl font-black text-slate-800 mb-1">
+                ${mode === 'duo' ? '哎呀！你們居然沒有重疊的愛店' : '你的專屬口袋名單出爐！'}
+              </h2>
+              <p class="text-xs text-slate-500 mb-4">
+                ${mode === 'duo' ? '沒關係，系統從你們各自喜歡的店裡隨機幫你們抽一間！' : '從你剛剛按喜歡的店裡，幫你抽出這餐的最終贏家：'}
+              </p>
+              <div class="bg-orange-50 rounded-2xl p-4 text-left border border-orange-200 mb-5">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-xs font-bold text-orange-600 bg-white px-2 py-0.5 rounded-full">${randomPick.tag}</span>
+                  <span class="text-xs font-bold text-slate-500">${randomPick.price}</span>
+                </div>
+                <h3 class="text-lg font-black text-slate-800 mb-2">${randomPick.emoji} ${randomPick.name}</h3>
+                <p class="text-xs text-emerald-700 mb-1.5"><strong>👍 必點：</strong>${randomPick.must}</p>
+                <p class="text-xs text-rose-600"><strong>⚠️ 誠實勸退：</strong>${randomPick.warn}</p>
+              </div>
+              <div class="flex gap-2">
+                <button onclick="goHome()" class="flex-1 py-3 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm">回首頁重選</button>
+                <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('台中 ' + randomPick.name)}" target="_blank" class="flex-1 py-3 rounded-xl bg-orange-500 text-white font-bold text-sm shadow">📍 查地圖出發</a>
+              </div>
+            </div>
+          `;
+          return;
+        }
+      }
+
+      const card = filteredDeck[currentIndex];
+      const progress = `${currentIndex + 1} / ${filteredDeck.length}`;
+      const displayDist = card.liveDistText ? card.liveDistText : card.dist;
+
+      app.innerHTML = `
+        <div class="flex flex-col h-full justify-between">
+          <div class="flex items-center justify-between mb-3">
+            <button onclick="goHome()" class="text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1">
+              ← 換情境
+            </button>
+            <div class="px-3 py-1 rounded-full text-xs font-black ${
+              mode === 'duo'
+                ? (currentPlayer === 1 ? 'bg-orange-100 text-orange-700' : 'bg-rose-100 text-rose-700')
+                : 'bg-slate-200 text-slate-700'
+            }">
+              ${mode === 'duo' ? `👤 第 ${currentPlayer} 位選擇中` : '🙋 單人挑選中'}
+            </div>
+            <span class="text-xs font-bold text-slate-400">${progress}</span>
+          </div>
+
+          <div id="activeCard" class="swipe-card bg-white rounded-3xl overflow-hidden card-shadow border border-slate-100 flex flex-col">
+            <div class="bg-gradient-to-br ${card.bg} p-5 text-white relative">
+              <div class="flex justify-between items-start">
+                <span class="bg-black/20 text-white text-xs font-bold px-3 py-1 rounded-full">
+                  ${card.tag}
+                </span>
+                <span class="text-4xl drop-shadow">${card.emoji}</span>
+              </div>
+              <h2 class="text-xl font-black mt-3 leading-snug tracking-tight">${card.name}</h2>
+              <div class="flex items-center gap-3 mt-2 text-xs font-medium text-white/90">
+                <span>💰 ${card.price}</span>
+                <span>•</span>
+                <span>📍 ${displayDist}</span>
+              </div>
+            </div>
+
+            <div class="p-5 space-y-3.5 bg-white flex-1">
+              <div class="bg-emerald-50/80 border border-emerald-100 rounded-2xl p-3.5">
+                <div class="text-xs font-black text-emerald-700 mb-1 flex items-center gap-1">
+                  <span>👍 老饕私房必點</span>
+                </div>
+                <p class="text-xs text-slate-700 leading-relaxed">${card.must}</p>
+              </div>
+
+              <div class="bg-rose-50/80 border border-rose-100 rounded-2xl p-3.5">
+                <div class="text-xs font-black text-rose-600 mb-1 flex items-center gap-1">
+                  <span>⚠️ 誠實勸退指南（不適合誰？）</span>
+                </div>
+                <p class="text-xs text-slate-700 leading-relaxed">${card.warn}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-center gap-6 mt-5 mb-2">
+            <button onclick="handleDecision(false)" class="w-16 h-16 rounded-full bg-white shadow-lg border border-slate-100 flex items-center justify-center text-2xl text-slate-400 hover:text-slate-600 hover:scale-105 active:scale-95 transition" title="先不要">
+              ✖️
+            </button>
+            <button onclick="handleDecision(true)" class="w-16 h-16 rounded-full bg-gradient-to-tr from-orange-500 to-rose-500 shadow-lg shadow-orange-200 flex items-center justify-center text-2xl text-white hover:scale-105 active:scale-95 transition" title="想吃這間！">
+              ❤️
+            </button>
+          </div>
+          <p class="text-center text-[11px] text-slate-400">左右滑動卡片，或點擊下方按鈕決定</p>
+        </div>
+      `;
+
+      setupTouchSwipe();
+    }
+
+    function startPlayer2() {
+      currentPlayer = 2;
+      currentIndex = 0;
+      render();
+    }
+
+    function handleDecision(liked) {
+      const cardEl = document.getElementById('activeCard');
+      const currentCard = filteredDeck[currentIndex];
+
+      if (cardEl) {
+        cardEl.style.transform = liked ? 'translateX(120%) rotate(15deg)' : 'translateX(-120%) rotate(-15deg)';
+        cardEl.style.opacity = '0';
+      }
+
+      setTimeout(() => {
+        if (liked) {
+          if (mode === 'solo') {
+            p1Likes.push(currentCard);
+          } else if (currentPlayer === 1) {
+            p1Likes.push(currentCard);
+          } else {
+            p2Likes.push(currentCard);
+            if (p1Likes.some(item => item.id === currentCard.id)) {
+              showMatchModal(currentCard);
+            }
+          }
+        }
+        currentIndex++;
+        render();
+      }, 220);
+    }
+
+    function setupTouchSwipe() {
+      const card = document.getElementById('activeCard');
+      if (!card) return;
+      let startX = 0;
+      let currentX = 0;
+
+      card.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+        card.classList.add('dragging');
+      });
+
+      card.addEventListener('touchmove', (e) => {
+        currentX = e.touches[0].clientX - startX;
+        card.style.transform = `translateX(${currentX}px) rotate(${currentX * 0.05}deg)`;
+      });
+
+      card.addEventListener('touchend', () => {
+        card.classList.remove('dragging');
+        if (currentX > 90) {
+          handleDecision(true);
+        } else if (currentX < -90) {
+          handleDecision(false);
+        } else {
+          card.style.transform = 'translateX(0) rotate(0)';
+        }
+        currentX = 0;
+      });
+    }
+
+    function showMatchModal(card) {
+      const modal = document.getElementById('matchModal');
+      const content = document.getElementById('matchCardContent');
+      const mapLink = document.getElementById('matchMapLink');
+
+      content.innerHTML = `
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs font-bold text-orange-600 bg-white px-2 py-0.5 rounded-full">${card.tag}</span>
+          <span class="text-xs font-bold text-slate-500">${card.price}</span>
+        </div>
+        <h3 class="text-lg font-black text-slate-800 mb-2">${card.emoji} ${card.name}</h3>
+        <p class="text-xs text-emerald-700 mb-1.5"><strong>👍 必點：</strong>${card.must}</p>
+        <p class="text-xs text-rose-600"><strong>⚠️ 誠實勸退：</strong>${card.warn}</p>
+      `;
+      mapLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('台中 ' + card.name)}`;
+      modal.classList.remove('hidden');
+    }
+
+    function closeMatchModal() {
+      document.getElementById('matchModal').classList.add('hidden');
+    }
+
+    function openAddModal() {
+      document.getElementById('addModal').classList.remove('hidden');
+    }
+
+    function closeAddModal() {
+      document.getElementById('addModal').classList.add('hidden');
+    }
+
+    function handleAddRestaurant(e) {
+      e.preventDefault();
+      const newRest = {
+        id: Date.now(),
+        name: document.getElementById('newName').value.trim(),
+        price: document.getElementById('newPrice').value.trim(),
+        dist: document.getElementById('newDist').value.trim(),
+        tag: document.getElementById('newTag').value,
+        emoji: "🍽️",
+        bg: "from-orange-500 to-rose-500",
+        must: document.getElementById('newMust').value.trim(),
+        warn: document.getElementById('newWarn').value.trim()
+      };
+      restaurants.unshift(newRest);
+      localStorage.setItem('honestFoodCards_v3', JSON.stringify(restaurants));
+      document.getElementById('addForm').reset();
+      closeAddModal();
+      alert('✅ 已成功新增到你的探店資料庫！');
+      render();
+    }
+
+    function openFeedbackModal() {
+      document.getElementById('feedbackModal').classList.remove('hidden');
+    }
+
+    function closeFeedbackModal() {
+      document.getElementById('feedbackModal').classList.add('hidden');
+    }
+
+    function submitFakeFeedback() {
+      closeFeedbackModal();
+      alert('🎉 感謝你的試用回饋！\n（提示：正式推廣時，這裡可以連到你的 Google 表單來收集真實名單數據喔！）');
+    }
+
+    // Init
+    render();
+  </script>
+</body>
+</html>
